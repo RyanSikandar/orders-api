@@ -36,10 +36,26 @@ func (a *App) Start(ctx context.Context) error {
 
 	fmt.Println("Starting server on :3000")
 
-	err = server.ListenAndServe()
+	go func() {
+		<-ctx.Done()
+		fmt.Println("Shutting down server...")
 
-	if err != nil {
-		return fmt.Errorf("Failed to start server: %w", err)
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5_000_000_000)
+		defer cancel()
+
+		if shutdownErr := server.Shutdown(shutdownCtx); shutdownErr != nil {
+			fmt.Println("Error during server shutdown:", shutdownErr)
+		}
+
+		if err := a.rdb.Close(); err != nil {
+			fmt.Println("Error closing Redis client:", err)
+		}
+
+		fmt.Println("Server and Redis client gracefully stopped")
+	}()
+
+	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		return fmt.Errorf("Server error: %w", err)
 	}
 
 	return nil
