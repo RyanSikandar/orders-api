@@ -13,7 +13,7 @@ type App struct {
 	// allowing easy swapping of routing implementations if needed
 	router http.Handler
 	// rdb holds the Redis client for persistence layer operations
-	rdb    *redis.Client
+	rdb *redis.Client
 }
 
 func NewApp() *App {
