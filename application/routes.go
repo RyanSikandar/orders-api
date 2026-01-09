@@ -12,12 +12,15 @@ import (
 func loadRoutes() *chi.Mux {
 	router := chi.NewRouter()
 
+	// Add logging middleware to track all incoming requests for debugging and monitoring
 	router.Use(middleware.Logger)
 
 	router.Get("/", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprint(w, "Hello World")
 	})
 
+	// Group all order-related routes under /orders prefix for better organization
+	// This keeps route definitions modular and easier to maintain
 	router.Route("/orders", loadOrderRoutes)
 
 	return router
@@ -26,6 +29,8 @@ func loadRoutes() *chi.Mux {
 func loadOrderRoutes(r chi.Router) {
 	orderHandler := &handler.Order{}
 
+	// Define RESTful routes following standard HTTP method conventions:
+	// GET for retrieval, POST for creation, PUT for updates, DELETE for removal
 	r.Get("/", orderHandler.List)
 	r.Post("/", orderHandler.Create)
 	r.Get("/{id}", orderHandler.GetByID)

@@ -12,8 +12,11 @@ import (
 func main() {
 	app := application.NewApp()
 
+	// Create a context that will be cancelled when SIGINT or SIGKILL is received
+	// This enables graceful shutdown when user presses Ctrl+C or system sends kill signal
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, os.Kill)
-	defer cancel() // this tells go to stop listening for signals anymore
+	// Ensure signal listener cleanup happens even if app.Start returns early
+	defer cancel()
 
 	err := app.Start(ctx)
 
