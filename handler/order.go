@@ -3,9 +3,13 @@ package handler
 import (
 	"fmt"
 	"net/http"
+
+	"github.com/RyanSikandar/orders-api/repository/order"
 )
 
-type Order struct{}
+type Order struct{
+	Repo *order.RedisRepo
+}
 
 func (o *Order) Create(w http.ResponseWriter, r *http.Request) {
 	// Placeholder implementation for creating an order

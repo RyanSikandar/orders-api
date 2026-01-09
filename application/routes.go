@@ -5,11 +5,12 @@ import (
 	"net/http"
 
 	"github.com/RyanSikandar/orders-api/handler"
+	"github.com/RyanSikandar/orders-api/repository/order"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 )
 
-func loadRoutes() *chi.Mux {
+func (a *App) loadRoutes() {
 	router := chi.NewRouter()
 
 	// Add logging middleware to track all incoming requests for debugging and monitoring
@@ -21,13 +22,15 @@ func loadRoutes() *chi.Mux {
 
 	// Group all order-related routes under /orders prefix for better organization
 	// This keeps route definitions modular and easier to maintain
-	router.Route("/orders", loadOrderRoutes)
+	router.Route("/orders", a.loadOrderRoutes)
 
-	return router
+	a.router = router
 }
 
-func loadOrderRoutes(r chi.Router) {
-	orderHandler := &handler.Order{}
+func (a *App) loadOrderRoutes(r chi.Router) {
+	orderHandler := &handler.Order{
+		Repo: &order.RedisRepo{Client: a.rdb},
+	}
 
 	// Define RESTful routes following standard HTTP method conventions:
 	// GET for retrieval, POST for creation, PUT for updates, DELETE for removal
