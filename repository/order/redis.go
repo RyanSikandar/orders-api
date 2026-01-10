@@ -148,7 +148,7 @@ type OrderIterator struct {
 
 type FindResults struct {
 	Orders []model.Order
-	cursor int
+	Cursor int
 }
 
 func (r *RedisRepo) List(ctx context.Context, page OrderIterator) (FindResults, error){
@@ -163,7 +163,7 @@ func (r *RedisRepo) List(ctx context.Context, page OrderIterator) (FindResults, 
 	if len(keys) == 0 {
 		return FindResults{
 			Orders: []model.Order{},
-			cursor: int(cursor),
+			Cursor: int(cursor),
 		}, nil
 	}
 	xs, err := r.Client.MGet(ctx, keys...).Result()
@@ -189,6 +189,6 @@ func (r *RedisRepo) List(ctx context.Context, page OrderIterator) (FindResults, 
 	
 	return FindResults{
 		Orders: orders,
-		cursor: int(cursor),
+		Cursor: int(cursor),
 	}, nil
 }
