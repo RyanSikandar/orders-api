@@ -10,7 +10,7 @@ import (
 )
 
 func main() {
-	app := application.NewApp()
+	app := application.NewApp(application.LoadConfig())
 
 	// Create a context that will be cancelled when SIGINT or SIGKILL is received
 	// This enables graceful shutdown when user presses Ctrl+C or system sends kill signal

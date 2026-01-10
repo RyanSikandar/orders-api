@@ -13,12 +13,16 @@ type App struct {
 	// allowing easy swapping of routing implementations if needed
 	router http.Handler
 	// rdb holds the Redis client for persistence layer operations
-	rdb *redis.Client
+	rdb    *redis.Client
+	config Config
 }
 
-func NewApp() *App {
+func NewApp(config Config) *App {
 	app := &App{
-		rdb: redis.NewClient(&redis.Options{}),
+		config: config,
+		rdb: redis.NewClient(&redis.Options{
+			Addr: config.RedisAddress,
+		}),
 	}
 	app.loadRoutes()
 	return app
@@ -26,7 +30,7 @@ func NewApp() *App {
 
 func (a *App) Start(ctx context.Context) error {
 	server := &http.Server{
-		Addr:    ":3000",
+		Addr:    fmt.Sprintf(":%d", a.config.ServerPort),
 		Handler: a.router,
 	}
 
@@ -39,7 +43,7 @@ func (a *App) Start(ctx context.Context) error {
 
 	fmt.Println("Connected to Redis successfully")
 
-	fmt.Println("Starting server on :3000")
+	fmt.Println("Starting server on :", a.config.ServerPort)
 
 	// Start a goroutine to handle graceful shutdown when context is cancelled
 	// This allows the server to finish processing existing requests before stopping
