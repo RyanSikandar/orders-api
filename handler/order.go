@@ -9,6 +9,7 @@ import (
 
 	"github.com/RyanSikandar/orders-api/model"
 	"github.com/RyanSikandar/orders-api/repository/order"
+	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 )
 
@@ -104,16 +105,114 @@ func (o *Order) List(w http.ResponseWriter, r *http.Request) {
 }
 
 func (o *Order) GetByID(w http.ResponseWriter, r *http.Request) {
-	// Placeholder implementation for getting an order by ID
-	fmt.Fprintln(w, "Order details by ID")
+	// use chi to get the path params
+
+	idParam := chi.URLParam(r, "id")
+
+	// Convert idParam to int
+	var id int
+	_, err := fmt.Sscan(idParam, &id)
+	if err != nil {
+		http.Error(w, "Invalid order ID", http.StatusBadRequest)
+		return
+	}
+
+	order, err := o.Repo.GetByID(r.Context(), id)
+
+	if err != nil {
+		http.Error(w, "Failed to get order by ID", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(order); err != nil {
+		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+		return
+	}
 }
 
 func (o *Order) UpdateByID(w http.ResponseWriter, r *http.Request) {
-	// Placeholder implementation for updating an order by ID
-	fmt.Fprintln(w, "Order updated by ID")
+	var updatedOrder struct {
+		Status string `json:"status"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&updatedOrder); err != nil {
+		http.Error(w, "Invalid request payload", http.StatusBadRequest)
+		return
+	}
+
+	// Get the id from the URL params
+	idParam := chi.URLParam(r, "id")
+
+	// Convert idParam to int
+	var id int
+	_, err := fmt.Sscan(idParam, &id)
+	if err != nil {
+		http.Error(w, "Invalid order ID", http.StatusBadRequest)
+		return
+	}
+
+	order, err := o.Repo.GetByID(r.Context(), id)
+
+	if err != nil {
+		http.Error(w, "Failed to get order by ID", http.StatusInternalServerError)
+		return
+	}
+
+	const completedStatus = "completed"
+	const shippedStatus = "shipped"
+
+	now := time.Now().UTC()
+
+	switch updatedOrder.Status {
+	case completedStatus:
+		if order.ShippedAt != nil && order.CompletedAt == nil {
+			order.CompletedAt = &now
+			break
+		}
+
+		http.Error(w, "Order must be shipped before it can be completed", http.StatusBadRequest)
+		return
+
+	case shippedStatus:
+		if order.ShippedAt != nil {
+			http.Error(w, "Order is already shipped", http.StatusBadRequest)
+			return
+		}
+		order.ShippedAt = &now
+	default:
+		http.Error(w, "Invalid status value", http.StatusBadRequest)
+		return
+	}
+
+	if err := o.Repo.UpdateByID(r.Context(), order); err != nil {
+		http.Error(w, "Failed to update order", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(order); err != nil {
+		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+		return
+	}
+
 }
 
 func (o *Order) DeleteByID(w http.ResponseWriter, r *http.Request) {
-	// Placeholder implementation for deleting an order by ID
-	fmt.Fprintln(w, "Order deleted by ID")
+	idParam := chi.URLParam(r, "id")
+
+	// Convert idParam to int
+	var id int
+	_, err := fmt.Sscan(idParam, &id)
+	if err != nil {
+		http.Error(w, "Invalid order ID", http.StatusBadRequest)
+		return
+	}
+
+	if err := o.Repo.DeleteByID(r.Context(), id); err != nil {
+		http.Error(w, "Failed to delete order", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 }

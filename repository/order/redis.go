@@ -79,21 +79,21 @@ func (r *RedisRepo) GetByID(ctx context.Context, id int) (model.Order, error) {
 	return order, nil
 }
 
-func (r *RedisRepo) UpdateByID(ctx context.Context, id int, updatedOrder model.Order) error {
-	key := generateOrderKey(id)
+func (r *RedisRepo) UpdateByID(ctx context.Context, updatedOrder model.Order) error {
+	key := generateOrderKey(updatedOrder.ID)
 
 	// Check if the order exists
 	_, err := r.Client.Get(ctx, key).Result()
 
 	if err != nil {
 		if err == redis.Nil {
-			return fmt.Errorf("order with ID %d not found", id)
+			return fmt.Errorf("order with ID %d not found", updatedOrder.ID)
 		}
 		return fmt.Errorf("failed to get order from redis: %w", err)
 	}
 
 	data, err := json.Marshal(updatedOrder)
-	
+
 	if err != nil {
 		return fmt.Errorf("failed to encode the updated order: %w", err)
 	}
@@ -114,10 +114,20 @@ func (r *RedisRepo) DeleteByID(ctx context.Context, id int) error {
 	txn := r.Client.TxPipeline()
 
 	// Delete the order from Redis
-	result, err := txn.Del(ctx, key).Result()
+	delCmd := txn.Del(ctx, key)
 
+	// Remove the order ID from the set
+	txn.SRem(ctx, "orders", key)
+
+	// Execute the transaction
+	_, err := txn.Exec(ctx)
 	if err != nil {
-		txn.Discard()
+		return fmt.Errorf("failed to execute transaction: %w", err)
+	}
+
+	// Check if the order was actually deleted
+	result, err := delCmd.Result()
+	if err != nil {
 		return fmt.Errorf("failed to delete order from redis: %w", err)
 	}
 
@@ -125,24 +135,11 @@ func (r *RedisRepo) DeleteByID(ctx context.Context, id int) error {
 		return fmt.Errorf("order with ID %d not found", id)
 	}
 
-	// Remove the order ID from the set
-	err = txn.SRem(ctx, "orders", key).Err()
-	
-	if err != nil {
-		txn.Discard()
-		return fmt.Errorf("failed to remove order ID from orders set: %w", err)
-	}
-
-	_, err = txn.Exec(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to execute transaction: %w", err)
-	}
-
 	return nil
 }
 
 type OrderIterator struct {
-	Size int64
+	Size   int64
 	Offset uint64
 }
 
@@ -151,7 +148,7 @@ type FindResults struct {
 	Cursor int
 }
 
-func (r *RedisRepo) List(ctx context.Context, page OrderIterator) (FindResults, error){
+func (r *RedisRepo) List(ctx context.Context, page OrderIterator) (FindResults, error) {
 	res := r.Client.SScan(ctx, "orders", page.Offset, "*", page.Size)
 
 	keys, cursor, err := res.Result()
@@ -178,7 +175,7 @@ func (r *RedisRepo) List(ctx context.Context, page OrderIterator) (FindResults, 
 		if x == nil {
 			continue
 		}
-		
+
 		var order model.Order
 		err := json.Unmarshal([]byte(x.(string)), &order)
 		if err != nil {
@@ -186,7 +183,7 @@ func (r *RedisRepo) List(ctx context.Context, page OrderIterator) (FindResults, 
 		}
 		orders = append(orders, order)
 	}
-	
+
 	return FindResults{
 		Orders: orders,
 		Cursor: int(cursor),
